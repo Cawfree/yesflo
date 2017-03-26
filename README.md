@@ -1,5 +1,5 @@
 # yesFlo
-A Java linear iterator for FlowHub's snazzy [noFlo diagrams](https://github.com/flowhub/the-graph).
+A Java parser and linear iterator for FlowHub's snazzy [noFlo diagrams](https://github.com/flowhub/the-graph).
 
 This library presents tools for interpreting FlowHub's diagram JSON as equivalent Java Objects. It also provides a simple iterator that allows noFlo Processes to be iterated linearly, using conventional dataflow, contrary to the asynchronous "message-driven" style used in Flow-Based Programming, or FBP.
 
