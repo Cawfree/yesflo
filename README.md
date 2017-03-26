@@ -16,4 +16,4 @@ You can visit the existing examples using the URLs below:
 And you can make a copy of the equivalent diagram JSON using the following script:
 `javascript:_graph = window.open("data:text/json," + encodeURIComponent(JSON.stringify(document.getElementById('editor').fbpGraph)),"_blank"); _graph.focus();`
 
-The returned String may then be procesed by the yesFlo utilities. A simple `iterate` method has been supplied, which will allow you to provide application-specific handling of a FlowHub diagram. Please note that this implementation is simplistic, and cyclic data dependencies will throw these utilities into an infinite loop!
+The returned `String` may then be procesed by the yesFlo utilities. A simple `iterate` method has been supplied, which will allow you to provide application-specific handling of a FlowHub diagram. Please note that this implementation is simplistic, and cyclic data dependencies will throw these utilities into an infinite loop!
