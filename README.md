@@ -18,4 +18,4 @@ And you can make a copy of the equivalent diagram JSON using the following scrip
 
 The returned `String` may then be procesed by the yesFlo utilities. A simple `iterate` method has been supplied, which will allow you to provide application-specific handling of a FlowHub diagram. Please note that this implementation is simplistic, and cyclic data dependencies will throw these utilities into an infinite loop!
 
-This project is build using `gradle`. Just enter the root-directory and hit `./gradlew build`.
+This project is built using **Gradle**. Just enter the root-directory and hit `./gradlew build`.
