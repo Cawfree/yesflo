@@ -125,8 +125,54 @@ public final class FlowHubTools {
         return lConnections;
     }
 
+    /** Defines whether two processes are Cyclic. */
+    public static final boolean isCyclic(final Process pSourcing, final Process pSinking, final List<Connection> pConnections) {
+        // Fetch the SourceConnections from the SinkingProcess.
+        final List<Connection.Source> lSourceConnections = FlowHubTools.getSourceConnections(pSinking, pConnections);
+        // Iterate the SourceConnections.
+        for(final Connection.Source lSourceConnection : lSourceConnections) {
+            // Fetch the Target Process.
+            final Process lTargetProcess = lSourceConnection.getTarget().getProcess();
+            // Is the TargetProcess the Source?
+            if(lTargetProcess.equals(pSourcing) || FlowHubTools.isCyclic(pSourcing, lTargetProcess, pConnections)) {
+                // The connection is cyclic!
+                return true;
+            }
+        }
+        // The process isn't cyclic.
+        return false;
+    }
+
+    /** Fetches the Source Connections for a Process. */
+    public static final List<Connection.Source> getSourceConnections(final Process pProcess, final List<Connection> pConnections) {
+        // Allocate a List to hold the Source Connections.
+        final List<Connection.Source> lConnections = new ArrayList<>();
+        // Iterate the Connections.
+        for(final Connection lConnection : pConnections) {  if(lConnection instanceof Connection.Source) {
+            // Fetch the SourceConnection.
+            final Connection.Source lSourceConnection = (Connection.Source)lConnection;
+            // Is the Connection Sourced from the Process?
+            if(lSourceConnection.getSource().getProcess().equals(pProcess)) {
+                // Buffer the SourceConnection.
+                lConnections.add(lSourceConnection);
+            }
+        } }
+        // Return the SourceConnections.
+        return lConnections;
+    }
+
     /** Linearly iterates through a FlowHub diagram. */ /** TODO: <T></T> */
     public static final <T> void iterate(final List<Process> pProcesses, final List<Parameter> pInports, final List<Parameter> pOutports, final List<Connection> pConnections, final IFloListener<T> pFloListener) {
+        // Iterate the Connections.
+        for(final Connection lConnection : pConnections) { if(lConnection instanceof Connection.Source) {
+            // Fetch the SourceConnection.
+            final Connection.Source lSourceConnection = (Connection.Source)lConnection;
+            // Determine if it's cyclic.
+            if(FlowHubTools.isCyclic(lSourceConnection.getSource().getProcess(), lSourceConnection.getTarget().getProcess(), pConnections)) {
+                // Don't permit execution of the graph.
+                throw new IllegalStateException("Cyclic configurations are unsupported.");
+            }
+        } }
         // Make a copy of the Processes that are left to execute.
         final List<Process>           lProcesses   = new ArrayList<>(pProcesses);
         // Make a local copy of the Connection; we'll be using this to determine which wires must be propagated next.
