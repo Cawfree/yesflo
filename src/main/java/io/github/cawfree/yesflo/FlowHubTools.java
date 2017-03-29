@@ -125,6 +125,12 @@ public final class FlowHubTools {
         return lConnections;
     }
 
+    /** Defines whether a Source Connection is cyclic. */
+    public static final boolean isCyclic(final Connection.Source pSourceConnection, final List<Connection> pConnections) {
+        // Use the core implementation.
+        return FlowHubTools.isCyclic(pSourceConnection.getSource().getProcess(), pSourceConnection.getTarget().getProcess(), pConnections);
+    }
+
     /** Defines whether two processes are Cyclic. */
     public static final boolean isCyclic(final Process pSourcing, final Process pSinking, final List<Connection> pConnections) {
         // Fetch the SourceConnections from the SinkingProcess.
@@ -168,7 +174,7 @@ public final class FlowHubTools {
             // Fetch the SourceConnection.
             final Connection.Source lSourceConnection = (Connection.Source)lConnection;
             // Determine if it's cyclic.
-            if(FlowHubTools.isCyclic(lSourceConnection.getSource().getProcess(), lSourceConnection.getTarget().getProcess(), pConnections)) {
+            if(FlowHubTools.isCyclic(lSourceConnection, pConnections)) {
                 // Don't permit execution of the graph.
                 throw new IllegalStateException("Cyclic configurations are unsupported.");
             }
