@@ -1617,12 +1617,15 @@ public final class Main {
             "}\n" +
             "\n";
 
+    private static final String JSON_GRAPH_CYCLIC = "{\"caseSensitive\":false,\"properties\":{},\"inports\":{},\"outports\":{},\"groups\":[],\"processes\":{\"1yb2\":{\"component\":\"tall\",\"metadata\":{\"label\":\"tall\",\"x\":576,\"y\":252,\"width\":72,\"height\":120}},\"lz3\":{\"component\":\"tall\",\"metadata\":{\"label\":\"tall\",\"x\":648,\"y\":504,\"width\":72,\"height\":120}},\"139m\":{\"component\":\"basic\",\"metadata\":{\"label\":\"basic\",\"x\":756,\"y\":324,\"width\":72,\"height\":72}}},\"connections\":[{\"src\":{\"process\":\"1yb2\",\"port\":\"out0\"},\"tgt\":{\"process\":\"139m\",\"port\":\"in0\"},\"metadata\":{}},{\"src\":{\"process\":\"139m\",\"port\":\"out\"},\"tgt\":{\"process\":\"lz3\",\"port\":\"in0\"},\"metadata\":{}},{\"src\":{\"process\":\"lz3\",\"port\":\"out0\"},\"tgt\":{\"process\":\"1yb2\",\"port\":\"in0\"},\"metadata\":{}}]}";
+
     /** Main Method Entry Point. */
     public static final void main(final String ... pArgs) throws Exception {
         // Allocate an ObjectMapper.
         final ObjectMapper         lObjectMapper    = new ObjectMapper();
         // Fetch the root-most JsonNode of the Diagram.
-        final JsonNode             lGraphJson       = lObjectMapper.readTree(Main.JSON_GRAPH_STRESS);
+              JsonNode             lGraphJson       = lObjectMapper.readTree(Main.JSON_GRAPH_STRESS);
+        //                         lGraphJson       = lObjectMapper.readTree(Main.JSON_GRAPH_CYCLIC); /** TODO: Do you have an idea for how cyclic data dependencies should be initialized? If so, get in touch! */
         // Fetch parameters of the Graph.
         final boolean              lIsCaseSensitive = lGraphJson.at("/caseSensitive").asBoolean();
         // Declare the ProcessMap. (A Map of all of the Diagram Processes and their corresponding lookup key.)
