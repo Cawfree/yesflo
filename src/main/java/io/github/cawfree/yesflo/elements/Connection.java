@@ -1,10 +1,8 @@
-package io.github.cawfree.yesflo.components;
+package io.github.cawfree.yesflo.elements;
 
 /**
- * Created by cawfree on 26/03/17.
+ * Created by @Cawfree on 26/03/17.
  */
-
-import io.github.cawfree.yesflo.Main;
 
 /** Defines a base Connection; a means of propagating data to a particular Target. */
 public abstract class Connection {
@@ -14,9 +12,9 @@ public abstract class Connection {
         /* Member Variables. */
         private final Terminal mSource;
         /** Constructor. */
-        public Source(final Terminal pSource, final Terminal pTarget) { /** TODO: Watch for order of calls! */
+        public Source(final Terminal pSource, final Terminal pTarget, final int pRoute) { /** TODO: Watch for order of calls! */
             // Initialize the Parent.
-            super(pTarget);
+            super(pTarget, pRoute);
             // Initialize Member Variables.
             this.mSource = pSource;
         }
@@ -29,9 +27,9 @@ public abstract class Connection {
         /* Member Variables. */
         private final String mData;
         /** Constructor. */
-        public Data(final Terminal pTarget, final String pData) {
+        public Data(final Terminal pTarget, final String pData, final int pRoute) {
             // Initialize the Parent.
-            super(pTarget);
+            super(pTarget, pRoute);
             // Initialize Member Variables.
             this.mData = pData;
         }
@@ -41,11 +39,14 @@ public abstract class Connection {
 
     /* Member Variables. */
     private final Terminal mTarget;
+    private final int      mRoute;
     /** Constructor. */
-    public Connection(final Terminal pTerminal) {
+    public Connection(final Terminal pTerminal, final int pRoute) {
         // Initialize Member Variables.
         this.mTarget = pTerminal;
+        this.mRoute  = pRoute;
     }
     /* Getters. */
     public final Terminal getTarget() { return this.mTarget; }
+    public final int      getRoute()  { return this.mRoute;  }
 }

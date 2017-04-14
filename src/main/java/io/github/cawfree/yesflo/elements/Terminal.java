@@ -1,10 +1,8 @@
-package io.github.cawfree.yesflo.components;
+package io.github.cawfree.yesflo.elements;
 
 /**
  * Created by cawfree on 26/03/17.
  */
-
-import io.github.cawfree.yesflo.components.Process;
 
 /** Define a Terminal. (This is information regarding Process-centric I/O.) */
 public class Terminal {

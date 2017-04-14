@@ -1,26 +1,26 @@
 package io.github.cawfree.yesflo;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.transform.Source;
-
-import io.github.cawfree.yesflo.components.Connection;
-import io.github.cawfree.yesflo.components.Parameter;
+import io.github.cawfree.yesflo.data.Catalogue;
+import io.github.cawfree.yesflo.elements.Component;
+import io.github.cawfree.yesflo.elements.Connection;
+import io.github.cawfree.yesflo.elements.Port;
+import io.github.cawfree.yesflo.util.FlowHubGlobal;
 import io.github.cawfree.yesflo.util.IFloListener;
-import io.github.cawfree.yesflo.components.Process;
+import io.github.cawfree.yesflo.elements.Process;
 
 public final class Main {
 
     /** Execute the command below in your browser's URL whilst viewing a FlowHub diagram to visualize the equivalent JSON String in a new tab. */
     // javascript:_graph = window.open("data:text/json," + encodeURIComponent(JSON.stringify(document.getElementById('editor').fbpGraph)),"_blank"); _graph.focus();
+    /** Execute this command to fetch the Library's equivalent JSON. */
+    // javascript:alert(JSON.stringify(document.getElementById('editor').$.graph.library));
 
     /* Static Declarations. */
     private static final String JSON_GRAPH_STRESS = "\n" +
@@ -1617,39 +1617,63 @@ public final class Main {
             "}\n" +
             "\n";
 
-    private static final String JSON_GRAPH_CYCLIC = "{\"caseSensitive\":false,\"properties\":{},\"inports\":{},\"outports\":{},\"groups\":[],\"processes\":{\"1yb2\":{\"component\":\"tall\",\"metadata\":{\"label\":\"tall\",\"x\":576,\"y\":252,\"width\":72,\"height\":120}},\"lz3\":{\"component\":\"tall\",\"metadata\":{\"label\":\"tall\",\"x\":648,\"y\":504,\"width\":72,\"height\":120}},\"139m\":{\"component\":\"basic\",\"metadata\":{\"label\":\"basic\",\"x\":756,\"y\":324,\"width\":72,\"height\":72}}},\"connections\":[{\"src\":{\"process\":\"1yb2\",\"port\":\"out0\"},\"tgt\":{\"process\":\"139m\",\"port\":\"in0\"},\"metadata\":{}},{\"src\":{\"process\":\"139m\",\"port\":\"out\"},\"tgt\":{\"process\":\"lz3\",\"port\":\"in0\"},\"metadata\":{}},{\"src\":{\"process\":\"lz3\",\"port\":\"out0\"},\"tgt\":{\"process\":\"1yb2\",\"port\":\"in0\"},\"metadata\":{}}]}";
+    private static final String JSON_GRAPH_HAS_UNWIRED = "{\"caseSensitive\":false,\"properties\":{},\"inports\":{},\"outports\":{},\"groups\":[],\"processes\":{\"1772\":{\"component\":\"basic\",\"metadata\":{\"label\":\"basic\",\"x\":338,\"y\":355,\"width\":72,\"height\":72}},\"crp\":{\"component\":\"tall\",\"metadata\":{\"label\":\"tall\",\"x\":540,\"y\":396,\"width\":72,\"height\":120}}},\"connections\":[{\"src\":{\"process\":\"1772\",\"port\":\"out\"},\"tgt\":{\"process\":\"crp\",\"port\":\"in0\"},\"metadata\":{}},{\"src\":{\"process\":\"1772\",\"port\":\"out\"},\"tgt\":{\"process\":\"crp\",\"port\":\"in4\"},\"metadata\":{\"route\":0}},{\"src\":{\"process\":\"crp\",\"port\":\"out0\"},\"tgt\":{\"process\":\"1772\",\"port\":\"in0\"},\"metadata\":{}},{\"src\":{\"process\":\"crp\",\"port\":\"out0\"},\"tgt\":{\"process\":\"1772\",\"port\":\"in1\"},\"metadata\":{\"route\":0}},{\"src\":{\"process\":\"crp\",\"port\":\"out0\"},\"tgt\":{\"process\":\"1772\",\"port\":\"in2\"},\"metadata\":{\"route\":0}}]}";
+
+    private static final String JSON_LIBRARY = "{\"basic\":{\"name\":\"basic\",\"description\":\"basic demo component\",\"icon\":\"eye\",\"inports\":[{\"name\":\"in0\",\"type\":\"all\"},{\"name\":\"in1\",\"type\":\"all\"},{\"name\":\"in2\",\"type\":\"all\"}],\"outports\":[{\"name\":\"out\",\"type\":\"all\"}]},\"tall\":{\"name\":\"tall\",\"description\":\"tall demo component\",\"icon\":\"cog\",\"inports\":[{\"name\":\"in0\",\"type\":\"all\"},{\"name\":\"in1\",\"type\":\"all\"},{\"name\":\"in2\",\"type\":\"all\"},{\"name\":\"in3\",\"type\":\"all\"},{\"name\":\"in4\",\"type\":\"all\"},{\"name\":\"in5\",\"type\":\"all\"},{\"name\":\"in6\",\"type\":\"all\"},{\"name\":\"in7\",\"type\":\"all\"},{\"name\":\"in8\",\"type\":\"all\"},{\"name\":\"in9\",\"type\":\"all\"},{\"name\":\"in10\",\"type\":\"all\"},{\"name\":\"in11\",\"type\":\"all\"},{\"name\":\"in12\",\"type\":\"all\"}],\"outports\":[{\"name\":\"out0\",\"type\":\"all\"}]}}";
 
     /** Main Method Entry Point. */
     public static final void main(final String ... pArgs) throws Exception {
         // Allocate an ObjectMapper.
         final ObjectMapper         lObjectMapper    = new ObjectMapper();
+        // Fetch the root-most JsonNode of the Library.
+        final JsonNode             lLibraryJson     = lObjectMapper.readTree(Main.JSON_LIBRARY);
         // Fetch the root-most JsonNode of the Diagram.
-              JsonNode             lGraphJson       = lObjectMapper.readTree(Main.JSON_GRAPH_STRESS);
-        //                         lGraphJson       = lObjectMapper.readTree(Main.JSON_GRAPH_CYCLIC); /** TODO: Do you have an idea for how cyclic data dependencies should be initialized? If so, get in touch! */
+        final JsonNode             lGraphJson       = lObjectMapper.readTree(Main.JSON_GRAPH_HAS_UNWIRED);
+        // Fetch the Catalogue.
+        final Catalogue            lCatalogue       = FlowHubGlobal.getCatalogue(lLibraryJson);
         // Fetch parameters of the Graph.
         final boolean              lIsCaseSensitive = lGraphJson.at("/caseSensitive").asBoolean();
         // Declare the ProcessMap. (A Map of all of the Diagram Processes and their corresponding lookup key.)
         final Map<String, Process> lProcessMap      = new HashMap<>();
         // Fetch the Processes.
-        final List<Process>        lProcesses       = FlowHubTools.onFetchProcesses(lGraphJson.at("/processes"), lProcessMap);
+        final List<Process>        lProcesses       = FlowHubGlobal.onFetchProcesses(lGraphJson.at("/processes"), lCatalogue, lProcessMap);
         // Fetch the Inports and Outports; we'll name these Parameters.
-        final List<Parameter>      lInports         = FlowHubTools.onFetchPorts(lGraphJson.at("/inports"), lProcessMap);
-        final List<Parameter>      lOutports        = FlowHubTools.onFetchPorts(lGraphJson.at("/outports"), lProcessMap);
+        final List<Port>           lInports         = FlowHubGlobal.onFetchPorts(lGraphJson.at("/inports"), lProcessMap);
+        final List<Port>           lOutports        = FlowHubGlobal.onFetchPorts(lGraphJson.at("/outports"), lProcessMap);
         // Fetch the Connection.
-        final List<Connection>     lConnections     = FlowHubTools.onFetchConnections(lGraphJson.at("/connections"), lProcessMap);
+        final List<Connection>     lConnections     = FlowHubGlobal.onFetchConnections(lGraphJson.at("/connections"), lProcessMap);
+        // Iterate the Processes.
+        for(final Process lProcess : lProcesses) {
+            // Iterate the Process' ports.
+            for(final Component.Port lInport : lProcess.getComponent().getInports()) {
+                // Fetch the number of Drivers.
+                final List<Connection> lDrivers = FlowHubGlobal.getDrivers(lProcess, lInport, lConnections);
+                // Are there no drivers?
+                if(lDrivers.isEmpty()) {
+                    // We don't support unwired Ports; *all* connections are required until we find a good architecture for handling default types.
+                    throw new UnsupportedOperationException("Diagram cannot be executed. Not all Inports have been wired.");
+                }
+                // Do we have instances of multiple drivers?
+                if(lDrivers.size() > 1) {
+                    // We don't support multiple drivers; dataflow doesn't work this way.
+                    throw new UnsupportedOperationException("Diagram cannot be executed. Detected multiple writes to a single Inport.");
+                }
+            }
+            System.out.println(FlowHubGlobal.getUnwired(lProcess, lConnections).size());
+        }
         // Iterate sequentially across the Diagram.
-        FlowHubTools.iterate(lProcesses, lInports, lOutports, lConnections, new IFloListener<Object>() {
+        FlowHubGlobal.iterate(lProcesses, lInports, lOutports, lConnections, new IFloListener<Component, Object>() {
             /** Define the data provided by an Inport Parameter. */
-            @Override public final Object getInportValue(final Parameter pParameter) { return null; }
+            @Override public final Object getInportValue(final Port pPort) { return null; }
             /** Define the data supplied by a Constant. */
             @Override public final Object valueOf(final Connection.Data pDataConnection) { return null; }
-            /** Executes a Process. Use the DataMap to look-up input data related via the SourceConnections, and write responses from the Process using the SinkConnections. (SinkConnections *must* provide output data in order for execution to work successfully.) */
-            @Override public final void onExecutionOf(final Process pProcess, List<Connection> pSourceConnections, final List<Connection> pSinkConnections, Map<Connection, Object> pDataMap) {
+            /** Executes a Component. Use the DataMap to look-up input data related via the SourceConnections, and write responses from the Process using the SinkConnections. (SinkConnections *must* provide output data in order for execution to work successfully.) */
+            @Override public final void onExecutionOf(final Component pComponent, List<Connection> pSourceConnections, final List<Connection> pSinkConnections, Map<Connection, Object> pDataMap) {
                 // i.e.
                 for(final Connection lOutputConnection : pSinkConnections) { pDataMap.put(lOutputConnection, "data at this output"); }
             }
             /** Handles the data written to an Outport Parameter. */
-            @Override public final void onOutportResponse(final Parameter pParameter, final Object pData) { }
+            @Override public final void onOutportResponse(final Port pPort, final Object pData) { }
         });
     }
 

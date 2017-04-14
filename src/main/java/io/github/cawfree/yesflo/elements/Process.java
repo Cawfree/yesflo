@@ -1,20 +1,21 @@
-package io.github.cawfree.yesflo.components;
+package io.github.cawfree.yesflo.elements;
 
 /**
  * Created by cawfree on 26/03/17.
  */
 
 /** Defines a Process (Diagram Functional Block). */
-public class Process {
+public class Process<U extends Component> {
     /* Member Variables. */
-    private final String mComponent; // The reference to the 'virtual' algorithmic implementation of this graphical element.
+    /** TODO: Component should refer to a library type. */
+    private final U      mComponent;
     private final int    mX;
     private final int    mY;
     private final int    mWidth;
     private final int    mHeight;
     private final String mLabel; // A user-friendly name written on the diagram.
     /** Constructor. */
-    public Process(final String pComponent, final int pX, final int pY, final int pWidth, final int pHeight, final String pLabel) {
+    public Process(final U pComponent, final int pX, final int pY, final int pWidth, final int pHeight, final String pLabel) {
         // Initialize Member Variables.
         this.mComponent = pComponent;
         this.mX         = pX;
@@ -24,7 +25,7 @@ public class Process {
         this.mLabel     = pLabel;
     }
     /* Getters. */
-    public final String getComponent() { return this.mComponent; }
+    public final U      getComponent() { return this.mComponent; }
     public final int    getX()         { return this.mX;         }
     public final int    getY()         { return this.mY;         }
     public final int    getWidth()     { return this.mWidth;     }
