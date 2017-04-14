@@ -1659,7 +1659,6 @@ public final class Main {
                     throw new UnsupportedOperationException("Diagram cannot be executed. Detected multiple writes to a single Inport.");
                 }
             }
-            System.out.println(FlowHubGlobal.getUnwired(lProcess, lConnections).size());
         }
         // Iterate sequentially across the Diagram.
         FlowHubGlobal.iterate(lProcesses, lInports, lOutports, lConnections, new IFloListener<Component, Object>() {
