@@ -4,36 +4,29 @@ package io.github.cawfree.yesflo.elements;
  * Created by Alexander Thomas (@Cawfree) on 30/03/17.
  */
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /** This represents a 'core' implementation of a Process; this is the type we refer to when defining Process calls. */
-public class Component {
-
-    /** An abstract Port implementation, which declares the Name and Data Type for a Component's Port. */
-    public static final class Port {
-        /* Member Variables. */
-        private final String mName;
-        private final String mType;
-        /** Constructor. */
-        public Port(final String pName, final String pType) {
-            // Initialize Member Variables.
-            this.mName = pName;
-            this.mType = pType;
-        }
-        /* Getters. */
-        public final String getName() { return this.mName; }
-        public final String getType() { return this.mType; }
-    }
+public class Component <T extends Param> {
 
     /* Member Variables. */
-    private final String               mName;
-    private final String               mDescription;
-    private final String               mIcon;
-    private final List<Component.Port> mInports;
-    private final List<Component.Port> mOutports;
+    @JsonProperty("name")
+    private final String  mName;
+    @JsonProperty("description")
+    private final String  mDescription;
+    @JsonProperty("icon")
+    private final String  mIcon;
+    @JsonProperty("inports")
+    private final List<T> mInports;
+    @JsonProperty("outports")
+    private final List<T> mOutports;
 
     /** Constructor. */
-    public Component(final String pName, final String pDescription, final String pIcon, final List<Component.Port> pInports, final List<Component.Port> pOutports) {
+    @JsonCreator
+    public Component(@JsonProperty("name")final String pName, @JsonProperty("description")final String pDescription, @JsonProperty("icon")final String pIcon, @JsonProperty("inports")final List<T> pInports, @JsonProperty("outports")final List<T> pOutports) {
         // Initialize Member Variables.
         this.mName        = pName;
         this.mDescription = pDescription;
@@ -55,11 +48,11 @@ public class Component {
         return this.mIcon;
     }
 
-    public final List<Component.Port> getInports() {
+    public final List<T> getInports() {
         return this.mInports;
     }
 
-    public final List<Component.Port> getOutports() {
+    public final List<T> getOutports() {
         return this.mOutports;
     }
 

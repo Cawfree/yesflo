@@ -15,12 +15,17 @@ import java.util.Map;
 import io.github.cawfree.yesflo.data.Catalogue;
 import io.github.cawfree.yesflo.elements.Component;
 import io.github.cawfree.yesflo.elements.Connection;
+import io.github.cawfree.yesflo.elements.Param;
 import io.github.cawfree.yesflo.elements.Process;
 import io.github.cawfree.yesflo.elements.Port;
 import io.github.cawfree.yesflo.elements.Terminal;
 
 /** A collection of algorithms for parsing FlowHub diagrams in their JSON form. */
 public final class FlowHubGlobal { /** TODO: Rename. */
+
+    /** TODO: How to infer route information? */
+    /* Static Declarations. */
+    public static final int VALUE_ROUTE_UNKNOWN = 0; // Assert the default.
 
     /** TODO: Use the associated Library to build the corresponding Processes, so we can use actual references and not mappings. */
 
@@ -44,17 +49,17 @@ public final class FlowHubGlobal { /** TODO: Rename. */
             final JsonNode lInportNodes   = lComponentNode.at("/inports");
             final JsonNode lOutportNodes  = lComponentNode.at("/outports");
             // Allocate the Inports and Outports.
-            final List<Component.Port> lInports   = new ArrayList<>(lInportNodes.size());
-            final List<Component.Port> lOutports  = new ArrayList<>(lOutportNodes.size());
+            final List<Param> lInports    = new ArrayList<>(lInportNodes.size());
+            final List<Param> lOutports   = new ArrayList<>(lOutportNodes.size());
             // Iterate the Inports.
             for(int i = 0; i < lInportNodes.size(); i++) {
                 // Fetch the next entry.
-                final JsonNode lInportNode = lInportNodes.get(i);
+                final JsonNode       lInportNode = lInportNodes.get(i);
                 // Allocate a new Inport.
                 final String         lInportName = lInportNode.at("/name").asText();
                 final String         lType       = lInportNode.at("/type").asText();
                 // Allocate a new Inport.
-                final Component.Port lInport     = new Component.Port(lInportName, lType);
+                final Param          lInport     = new Param(lInportName, lType);
                 // Buffer the Inports.
                 lInports.add(lInport);
             }
@@ -66,15 +71,15 @@ public final class FlowHubGlobal { /** TODO: Rename. */
                 final String         lOutportName = lOutportNode.at("/name").asText();
                 final String         lType        = lOutportNode.at("/type").asText();
                 // Allocate a new Outport.
-                final Component.Port lOutport     = new Component.Port(lOutportName, lType);
+                final Param          lOutport     = new Param(lOutportName, lType);
                 // Buffer the Outport.
                 lOutports.add(lOutport);
             }
             // Buffer the Component.
             lHashMap.put(lComponent, new Component(lName, lDescription, lIcon, lInports, lOutports));
         }
-        // Return the Catalogue.
-        return new Catalogue(lHashMap);
+        // Return the Catalogue. (Since The Graph buffers all the components in a single Catalogue, we'll assert the equivalent regex.)
+        return new Catalogue(lHashMap, "*");
     }
 
     /** Fetches the Ports of the Graph. */
@@ -82,31 +87,37 @@ public final class FlowHubGlobal { /** TODO: Rename. */
         // Allocate a List to buffer the Parameters.
         final List<Port> lPorts = new ArrayList<>();
         // Iterate the Nodes.
-        final Iterator<String> lIterator   = pJsonNode.fieldNames();
+        final Iterator<String> lIterator    = pJsonNode.fieldNames();
         // Iterate the Fields.
         while(lIterator.hasNext()) {
             // Fetch the next Field.
             final String   lPortDeclaration = lIterator.next(); // i.e. "prev"
             // Process the Port's dependencies.
             final JsonNode lPortNode        = pJsonNode.at("/" + lPortDeclaration);
-            // Fetch the associated Process.
-            final Process  lProcess         = pProcessMap.get(lPortNode.at("/process").asText()); // i.e. "routers\/KickRouter_bzaiw"
-            // Fetch the Port. TODO: Although the names seem shared, they might be the ports that we're connecting to! (likely the diagram use name)
-            final String   lPort            = lPortNode.at("/port").asText(); // i.e. "prev"
-            // Allocate the Terminal for the Process and Port defining the Connection.
-            final Terminal lTerminal        = new Terminal(lProcess, lPort);
-            // Fetch the MetaData.
-            final JsonNode lMetaData        = lPortNode.at("/metadata");
-            // Fetch the boundaries of the Port. /** TODO: To bounds? */
-            final int      lX               = lMetaData.at("/x").asInt();
-            final int      lY               = lMetaData.at("/y").asInt();
-            final int      lWidth           = lMetaData.at("/width").asInt();
-            final int      lHeight          = lMetaData.at("/height").asInt();
-            // Buffer a new Parameter.
-            lPorts.add(new Port(lTerminal, lX, lY, lWidth, lHeight));
+            // Allocate the Port and buffer it.
+            lPorts.add(FlowHubGlobal.getPort(lPortNode, pProcessMap));
         }
         // Return the Parameters.
         return lPorts;
+    }
+
+    /** Converts a JsonNode to a corresponding Port. */
+    public static final Port getPort(final JsonNode pJsonNode, final Map<String, Process> pProcessMap) {
+        // Fetch the associated Process.
+        final Process  lProcess         = pProcessMap.get(pJsonNode.at("/process").asText()); // i.e. "routers\/KickRouter_bzaiw"
+        // Fetch the Port. TODO: Although the names seem shared, they might be the ports that we're connecting to! (likely the diagram use name)
+        final String   lPort            = pJsonNode.at("/port").asText(); // i.e. "prev"
+        // Allocate the Terminal for the Process and Port defining the Connection.
+        final Terminal lTerminal        = new Terminal(lProcess, lPort);
+        // Fetch the MetaData.
+        final JsonNode lMetaData        = pJsonNode.at("/metadata");
+        // Fetch the boundaries of the Port. /** TODO: To bounds? */
+        final int      lX               = lMetaData.at("/x").asInt();
+        final int      lY               = lMetaData.at("/y").asInt();
+        final int      lWidth           = lMetaData.at("/width").asInt();
+        final int      lHeight          = lMetaData.at("/height").asInt();
+        // Buffer a new Parameter.
+        return new Port(lTerminal, lX, lY, lWidth, lHeight);
     }
 
     /** Fetches the Processes defined on the Graph. */
@@ -149,38 +160,85 @@ public final class FlowHubGlobal { /** TODO: Rename. */
         // Iterate the Connection.
         for(int i = 0; i < pJsonNode.size(); i++) {
             // Fetch the next Connection.
-            final JsonNode lConnectionNode = pJsonNode.get(i);
-            // Fetch the Target. (Where we're carrying data to. (This is why we differentiate between Source/Data connections.))
-            final JsonNode lTarget         = lConnectionNode.at("/tgt");
-            // Fetch the Target Information.
-            final Process  lProcess        = pProcessMap.get(lTarget.at("/process").asText()); // i.e. "dom\/GetElement_f4nkd", a Process on the diagram.
-            // Fetch the Port on the Target we'll pass the data into.
-            final String   lPort           = lTarget.at("/port").asText(); // i.e. "element", the port on the target Process we're connecting. (*Not* the Component of that Process.)
-            // Allocate the Target Terminal.
-            final Terminal lTargetTerminal = new Terminal(lProcess, lPort);
-            // Fetch the SourceNode.
-            final JsonNode lSourceNode     = lConnectionNode.at("/src");
-            // Fetch the Route.
-            final int      lRoute          = lConnectionNode.at("/metadata").at("/route").asInt();
-            // Is the SourceNode valid?
-            if(lSourceNode != null && !lSourceNode.toString().isEmpty()) { /** TODO: Cleaner implementation. */
-                // Fetch the Process and the Port of the Source.
-                final Process  lSourceProcess  = pProcessMap.get(lSourceNode.at("/process").asText()); // i.e. "dom\/GetElement_f4nkd" The diagram Process that's sourcing the data.
-                final String   lSourcePort     = lSourceNode.at("/port").asText(); // i.e. "element"  The Port on the diagram Process we're connected to.
-                // Allocate the SourceTerminal.
-                final Terminal lSourceTerminal = new Terminal(lSourceProcess, lSourcePort);
-                // Allocate the SourceConnection.
-                lConnections.add(new Connection.Source(lSourceTerminal, lTargetTerminal, lRoute));
-            }
-            else {
-                // Fetch the Value of the Data being transmitted.
-                final String lDataValue     = lConnectionNode.at("/data").asText();
-                // Allocate the DataConnection.
-                lConnections.add(new Connection.Data(lTargetTerminal, lDataValue, lRoute));
-            }
+            final JsonNode   lConnectionNode = pJsonNode.get(i);
+            // Render the corresponding Connection.
+            final Connection lConnection     = FlowHubGlobal.getConnection(lConnectionNode, pProcessMap);
+            // Buffer the Connection.
+            lConnections.add(lConnection);
         }
         // Return the Connection.
         return lConnections;
+    }
+
+    /** Defines whether a JsonNode contains useful information. */
+    public static final boolean isValidNode(final JsonNode pJsonNode) { /** TODO: There must be an equivalent Jackson. */
+        // Ensure it's not null and it has some content.
+        return pJsonNode != null && !pJsonNode.toString().isEmpty();
+    }
+
+    /** Deserializes a Connection from a JsonNode. */
+    private static final Connection getConnection(final JsonNode pJsonNode, final Map<String, Process> pProcessMap) {
+        // Fetch the Target. (Where we're carrying data to. (This is why we differentiate between Source/Data connections.))
+        final JsonNode lTarget         = pJsonNode.at("/tgt");
+        // Fetch the Target Information.
+        final Process  lProcess        = pProcessMap.get(lTarget.at("/process").asText()); // i.e. "dom\/GetElement_f4nkd", a Process on the diagram.
+        // Fetch the Port on the Target we'll pass the data into.
+        final String   lPort           = lTarget.at("/port").asText(); // i.e. "element", the port on the target Process we're connecting. (*Not* the Component of that Process.)
+        // Allocate the Target Terminal.
+        final Terminal lTargetTerminal = new Terminal(lProcess, lPort);
+        // Fetch the SourceNode.
+        final JsonNode lSourceNode     = pJsonNode.at("/src");
+        // Fetch the Route.
+        final int      lRoute          = pJsonNode.at("/metadata").at("/route").asInt();
+        // Is the SourceNode valid?
+        if(FlowHubGlobal.isValidNode(lSourceNode)) { /** TODO: Cleaner implementation. */
+            // Fetch the Process and the Port of the Source.
+            final Process  lSourceProcess  = pProcessMap.get(lSourceNode.at("/process").asText()); // i.e. "dom\/GetElement_f4nkd" The diagram Process that's sourcing the data.
+            final String   lSourcePort     = lSourceNode.at("/port").asText(); // i.e. "element"  The Port on the diagram Process we're connected to.
+            // Allocate the SourceTerminal.
+            final Terminal lSourceTerminal = new Terminal(lSourceProcess, lSourcePort);
+            // Return a SourceConnection.
+            return new Connection.Source(lSourceTerminal, lTargetTerminal, lRoute);
+        }
+        else {
+            // Fetch the Value of the Data being transmitted.
+            final String lDataValue     = pJsonNode.at("/data").asText();
+            // Return the DataConnection.
+            return new Connection.Data(lTargetTerminal, lDataValue, lRoute);
+        }
+    }
+
+    /** Returns an equivalent Connection from a low-level internal definition, i.e. {"from":{"node":1,"port":"out0"},"to":{"node":2,"port":"in0"},"metadata":{}} */
+    public static final Connection getConnectionRaw(final JsonNode pJsonNode, final Map<String, Process> pProcessMap) {
+        // Parse the Target.
+        final JsonNode lTarget  = pJsonNode.at("/to");
+        // Fetch the Node and Port of the Target.
+        final Process  lTargetProcess = pProcessMap.get(lTarget.at("/node").asText());
+        final String   lTargetPort    = lTarget.at("/port").asText();
+        // If we couldn't find the matching process, throw an error.
+        if(lTargetProcess == null) {
+            // We must be able to provide a sound catalogue of the contained Processes.
+            throw new NullPointerException("Invalid Process reference.");
+        }
+        // Allocate a corresponding Terminal.
+        final Terminal lTerminal = new Terminal(lTargetProcess, lTargetPort);
+        // Fetch the Source.
+        final JsonNode lSource   = pJsonNode.at("/from");
+        // Ensure it exists.
+        if(lSource != null) {
+            // Fetch the SourceProcess and SourcePort.
+            final Process lSourceProcess = pProcessMap.get(lSource.at("/node").asText());
+            final String  lSourcePort    = lSource.at("/port").asText();
+            // Allocate the SourceTerminal.
+            final Terminal lSourceTerminal = new Terminal(lSourceProcess, lSourcePort);
+            // Allocate the corresponding Connection.
+            return new Connection.Source(lSourceTerminal, lTerminal, FlowHubGlobal.VALUE_ROUTE_UNKNOWN); /** TODO: Route is *not* a safe parameter to check equality with. */
+        }
+        else {
+            /** TODO: Fix handling for DataConnections! */
+            // We don't know how to catalogue DataConnections as of yet.
+            throw new UnsupportedOperationException("DataConnection instantiation isn't yet supported.");
+        }
     }
 
     /** Defines whether a Source Connection is cyclic. */
@@ -241,16 +299,25 @@ public final class FlowHubGlobal { /** TODO: Rename. */
         return lConnections;
     }
 
+    /** Defines whether a the drivers to a Port indicate it's unwired. */
+    public static final <T extends Port> boolean isUnwired(final List<Connection> pConnections, final List<T> pPorts) {
+        // Are they both empty?
+        return pConnections.isEmpty() && pPorts.isEmpty();
+    }
+
     /** Fetches a reference to the Ports that need to be wired for an existing Process. (Dataflow states that all data dependencies must be supplied.) */
-    public static final List<Component.Port> getUnwired(final Process pProcess, final List<Connection> pConnections) {
+    public static final List<Param> getUnwired(final Process pProcess, final List<Connection> pConnections, final List<Port> pPorts) {
         // Allocate a List to hold the Portd which are starved.
-        final List<Component.Port> lStarved     = new ArrayList<>();
+        final List<Param> lStarved     = new ArrayList<>();
         // Iterate the Process' Inports.
-        for(final Component.Port lInport : pProcess.getComponent().getInports()) {
-            // Fetch the Connections to this Inport.
-            final List<Connection> lConnections = FlowHubGlobal.getDrivers(pProcess, lInport, pConnections);
+        for(int i = 0; i < pProcess.getComponent().getInports().size(); i++) {
+            // Fetch the Param.
+            final Param lInport = (Param)pProcess.getComponent().getInports().get(i); /** TODO: Clean up the generic implementation. */
+            // Fetch the driving Ports and Connections to this Inport.
+            final List<Connection> lConnections = FlowHubGlobal.getDrivingConnections(pProcess, lInport, pConnections);
+            final List<Port>       lPorts       = FlowHubGlobal.getDrivingPorts(pProcess, lInport, pPorts);
             // Are there no Connections?
-            if(lConnections.size() == 0) {
+            if(FlowHubGlobal.isUnwired(lConnections, lPorts)) {
                 // The Port is starved.
                 lStarved.add(lInport);
             }
@@ -260,7 +327,7 @@ public final class FlowHubGlobal { /** TODO: Rename. */
     }
 
     /** Fetches the drivers for a given Inport belonging to a Process. (Multiple drivers are unsupported in Dataflow!) */
-    public static final List<Connection> getDrivers(final Process pProcess, final Component.Port pInport, final List<Connection> pConnections) {
+    public static final List<Connection> getDrivingConnections(final Process pProcess, final Param pInport, final List<Connection> pConnections) {
         // Allocate a List for the Connections which drive. Ideally, there should be no more than one.
         final List<Connection> lConnections = new ArrayList<>(1);
         // Iterate the Connections.
@@ -278,10 +345,89 @@ public final class FlowHubGlobal { /** TODO: Rename. */
         return lConnections;
     }
 
+    /** Fetches the driving diagram-level Ports for an Inport. (Multiple drivers are unsupported in Dataflow!) */
+    public static final <V extends Port> List<V> getDrivingPorts(final Process pProcess, final Param pInport, final List<V> pPorts) {
+        // Allocate a List for the Ports which drive. Ideally, there should be no more than one.
+        final List<V> lPorts = new ArrayList<>(1);
+        // Iterate the Ports.
+        for(final V lPort : pPorts) {
+            // Does the current Port drive the Process?
+            if(lPort.getTerminal().getProcess().equals(pProcess)) {
+                // Does it connect to the specified Port?
+                if(lPort.getTerminal().getPort().equals(pInport.getName())) {
+                    // Buffer the Port.
+                    lPorts.add(lPort);
+                }
+            }
+        }
+        // Return the Ports.
+        return lPorts;
+    }
+
+    /** Returns the data that's driving a given Process Inport. The expectatation is that at this stage we've ratified that there's only a single driver. */
+    public static final <V extends Port, T> T getDrivingData(final Process pProcess, final Param pInport, final List<V> pPorts, final List<Connection> pDrivingConnections, final Map<V, T> pPortDataMap, final Map<Connection, T> pConnectionDataMap) {
+        // Declare the Data we're going to be returning.
+        T       lT       = null;
+        // Define a boolean to determine if the data was found.
+        boolean lIsFound = false;
+        // Find the connection driving the Inport.
+        for(final Connection lConnection : pDrivingConnections) {
+            // Ensure we're handling appropriate drivers.
+            if(!lConnection.getTarget().getProcess().equals(pProcess)) {
+                // The developer supplied the wrong Connections. (They need to drive this process only.)
+                throw new UnsupportedOperationException("Invalid driving connections.");
+            }
+            // Does the Connection target the Inport?
+            if(lConnection.getTarget().getPort().equals(pInport.getName()) && lConnection.getTarget().getProcess().equals(pProcess)) {
+                // Fetch the data.
+                lT       = pConnectionDataMap.get(lConnection);
+                // Assert that we found the data. (We can't use an 'is null' check because some drivers might want to return null.)
+                lIsFound = true;
+                // Stop iterating.
+                break;
+            }
+        }
+        // Could we not find the driving data?
+        if(!lIsFound) {
+            // Fetch the driving Inport.
+            for(final V lPort : pPorts) {
+                // Ensure we're handling the appropriate drivers.
+                if(!lPort.getTerminal().getProcess().equals(pProcess)) {
+                    // The developer supplied the wrong Ports. (They need to drive this process only.)
+                    throw new UnsupportedOperationException("Invalid driving ports.");
+                }
+                // Does the Port target the Inport?
+                if(lPort.getTerminal().getPort().equals(pInport.getName())) {
+                    // Fetch the data.
+                    lT       = pPortDataMap.get(lPort);
+                    // Assert that we found the data.
+                    lIsFound = true;
+                    // Stop iterating.
+                    break;
+                }
+            }
+        }
+        // Return the driving data.
+        return lT;
+    }
+
     /** TODO: Detect duplicate transmissions. */
 
+    /** Linearly iterates through a FlowHub diagram. */
+    public static final <U extends Component, T, V extends Port> void iterate(final Map<String, Process> pProcessMap, final List<V> pInports, final List<V> pOutports, final List<Connection> pConnections, final IFloListener<U, T, V> pFloListener) {
+        // Allocate the Processes.
+        final List<Process> lProcesses = new ArrayList<>();
+        // Iterate the ProcessMap.
+        for(final Map.Entry<String, Process> lEntry : pProcessMap.entrySet()) {
+            // Buffer the Process.
+            lProcesses.add(lEntry.getValue());
+        }
+        // Call the core implementation.
+        FlowHubGlobal.iterate(lProcesses, pInports, pOutports, pConnections, pFloListener);
+    }
+
     /** Linearly iterates through a FlowHub diagram. */ /** TODO: <T></T> */
-    public static final <T> void iterate(final List<Process> pProcesses, final List<Port> pInports, final List<Port> pOutports, final List<Connection> pConnections, final IFloListener<Component, T> pFloListener) {
+    public static final <U extends Component, T, V extends Port> void iterate(final List<Process> pProcesses, final List<V> pInports, final List<V> pOutports, final List<Connection> pConnections, final IFloListener<U, T, V> pFloListener) {
         // Iterate the Connections.
         for(final Connection lConnection : pConnections) { if(lConnection instanceof Connection.Source) {
             // Fetch the SourceConnection.
@@ -292,19 +438,47 @@ public final class FlowHubGlobal { /** TODO: Rename. */
                 throw new IllegalStateException("Cyclic configurations are unsupported.");
             }
         } }
+        // Iterate the Processes.
+        for(final Process lProcess : pProcesses) {
+            // Iterate the Process' ports.
+            for(int i = 0; i < lProcess.getComponent().getInports().size(); i++) {
+                // Fetch the Inport.
+                final Param            lInport = (Param)lProcess.getComponent().getInports().get(i); /** TODO: Clean up generic implementation. */
+                // Fetch the Driving Sources.
+                final List<Connection> lDrivers = FlowHubGlobal.getDrivingConnections(lProcess, lInport, pConnections);
+                final List<V>          lPorts   = FlowHubGlobal.getDrivingPorts(lProcess, lInport, pInports);
+                // Are there no drivers?
+                if(FlowHubGlobal.isUnwired(lDrivers, lPorts)) { /** TODO: Externalize this check. */
+                    // We don't support unwired Ports; *all* connections are required until we find a good architecture for handling default types.
+                    throw new UnsupportedOperationException("Diagram cannot be executed. Not all Inports have been wired.");
+                }
+                // Do we have instances of multiple drivers?
+                if(lDrivers.size() > 1) {
+                    // We don't support multiple drivers; dataflow doesn't work this way.
+                    throw new UnsupportedOperationException("Diagram cannot be executed. Detected multiple writes to a single Inport.");
+                }
+            }
+        }
         // Make a copy of the Processes that are left to execute.
         final List<Process>           lProcesses   = new ArrayList<>(pProcesses);
         // Make a local copy of the Connection; we'll be using this to determine which wires must be propagated next.
         final List<Connection>        lConnections = new ArrayList<>(pConnections);
         // The Outports which have yet to be driven to.
-        final List<Port>              lOutports    = new ArrayList<>(pOutports);
+        final List<V>                 lOutports    = new ArrayList<>(pOutports);
         // Declare the DataMap; defines which data propagates across which Connection.
         final Map<Connection, T>      lDataMap     = new HashMap<>(); /** TODO:ensure connections match datamap size */
+        final Map<V, T>               lPortDataMap = new HashMap<>();
         // Iterate across the Inports. (Inputs to the Diagram.)
-        for(final Port lPort : pInports) {
+        for(final V lPort : pInports) {
+            // Fetch the Port's Data.
+            final T lData = pFloListener.getInportValue(lPort);
+            // Buffer this into the PortDataMap.
+            lPortDataMap.put(lPort, lData);
+
+
             // Iterate the Connection connected to this Port.
-            for(final Connection lConnection : lConnections) {
-                // Is it a SourceConnection? /** TODO: To Courier! */
+            /*for(final Connection lConnection : lConnections) {
+                // Is it a SourceConnection?
                 if(lConnection instanceof Connection.Source) {
                     // Cast accordingly.
                     final Connection.Source lSourceConnection = (Connection.Source)lConnection;
@@ -314,7 +488,9 @@ public final class FlowHubGlobal { /** TODO: Rename. */
                         lDataMap.put(lConnection, pFloListener.getInportValue(lPort));
                     }
                 }
-            }
+            }*/
+
+
         }
         // Iterate the DataConnections.
         for(final Connection lConnection : lConnections) {
@@ -326,16 +502,17 @@ public final class FlowHubGlobal { /** TODO: Rename. */
                 lDataMap.put(lDataConnection, pFloListener.valueOf(lDataConnection));
             }
         }
-        // Whilst there are Connection left to process...
-        while(lConnections.size() > 0) {
+        // Whilst there are Processes left to execute...
+        while(lProcesses.size() > 0) {
             // Iterate the Processes that we have left to execute.
             for(int j = lProcesses.size() - 1; j >= 0; j--) { /** TODO: Only need to generate these lists once... */
                 // Fetch the Process.
-                final Process lProcess = lProcesses.get(j);
+                final Process<U>       lProcess  = lProcesses.get(j);
                 // Allocate a List of the Sinking and Sourcing Connection to this Process.
+                final List<V>          lPorts    = new ArrayList<>();
                 final List<Connection> lSourcing = new ArrayList<>(); // Inputs to a Process. (The *target* to supply data into.)
                 final List<Connection> lSinking  = new ArrayList<>(); // Outputs from Processes. (The *source* of Process data.)
-                // Iterate the Connection.
+                // Iterate the Connections.
                 for(final Connection lConnection : lConnections) {
                     // Determine if the Connection is providing data to this process.
                     if(lConnection.getTarget().getProcess().equals(lProcess)) {
@@ -353,9 +530,17 @@ public final class FlowHubGlobal { /** TODO: Rename. */
                         }
                     }
                 }
+                // Iterate the Ports.
+                for(final V lPort : pInports) {
+                    // Does it source to the Process?
+                    if(lPort.getTerminal().getProcess().equals(lProcess)) {
+                        // Add the Ports.
+                        lPorts.add(lPort);
+                    }
+                }
                 // Determine if the Process is permitted to execute.
                 boolean lIsExecutable = true;
-                // Iterate the Sourcing.
+                // Iterate the Sourcing. (We don't need to do this with Ports, because the FloListener guarantees data will be supplied by them.)
                 for(int i = 0; i < lSourcing.size() && lIsExecutable; i++) {
                     // Ensure there's a matching entry for this Connection in the DataMap.
                     lIsExecutable &= lDataMap.containsKey(lSourcing.get(i));
@@ -363,7 +548,7 @@ public final class FlowHubGlobal { /** TODO: Rename. */
                 // Is the Process Executable?
                 if(lIsExecutable) {
                     // Execute the Process. (The expectation is that the results for each Sinking connection are now within the DataMap.)
-                    pFloListener.onExecutionOf(lProcess.getComponent(), lSourcing, lSinking, lDataMap);
+                    pFloListener.onExecutionOf(lProcess, lPorts, lSourcing, lSinking, lPortDataMap, lDataMap);
                     // Iterate the Sourcing.
                     for(int i = lSourcing.size() - 1; i >= 0; i--) {
                         // Fetch the Sourcing Connection.
@@ -383,7 +568,7 @@ public final class FlowHubGlobal { /** TODO: Rename. */
                             // Iterate the Outports.
                             for(int i = lOutports.size() - 1; i >= 0; i--) {
                                 // Fetch the Parameter.
-                                final Port lPort = lOutports.get(i);
+                                final V lPort = lOutports.get(i);
                                 // Determine if the Output is wired to the same Process.
                                 if(lPort.getTerminal().getProcess().equals(lSourceConnection.getSource().getProcess()) && lPort.getTerminal().getPort().equals(lSourceConnection.getSource().getPort())) {
                                     // Have the Outport handle the Result.

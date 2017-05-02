@@ -40,6 +40,7 @@ public abstract class Connection {
     /* Member Variables. */
     private final Terminal mTarget;
     private final int      mRoute;
+
     /** Constructor. */
     public Connection(final Terminal pTerminal, final int pRoute) {
         // Initialize Member Variables.

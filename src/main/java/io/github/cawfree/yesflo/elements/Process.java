@@ -4,8 +4,10 @@ package io.github.cawfree.yesflo.elements;
  * Created by cawfree on 26/03/17.
  */
 
+import java.io.Serializable;
+
 /** Defines a Process (Diagram Functional Block). */
-public class Process<U extends Component> {
+public class Process <U extends Component> implements Serializable {
     /* Member Variables. */
     /** TODO: Component should refer to a library type. */
     private final U      mComponent;
@@ -24,6 +26,7 @@ public class Process<U extends Component> {
         this.mHeight    = pHeight;
         this.mLabel     = pLabel;
     }
+
     /* Getters. */
     public final U      getComponent() { return this.mComponent; }
     public final int    getX()         { return this.mX;         }
@@ -31,4 +34,5 @@ public class Process<U extends Component> {
     public final int    getWidth()     { return this.mWidth;     }
     public final int    getHeight()    { return this.mHeight;    }
     public final String getLabel()     { return this.mLabel;     }
+
 }

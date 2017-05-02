@@ -10,6 +10,7 @@ import java.util.Map;
 import io.github.cawfree.yesflo.data.Catalogue;
 import io.github.cawfree.yesflo.elements.Component;
 import io.github.cawfree.yesflo.elements.Connection;
+import io.github.cawfree.yesflo.elements.Param;
 import io.github.cawfree.yesflo.elements.Port;
 import io.github.cawfree.yesflo.util.FlowHubGlobal;
 import io.github.cawfree.yesflo.util.IFloListener;
@@ -1632,7 +1633,7 @@ public final class Main {
         // Fetch the Catalogue.
         final Catalogue            lCatalogue       = FlowHubGlobal.getCatalogue(lLibraryJson);
         // Fetch parameters of the Graph.
-        final boolean              lIsCaseSensitive = lGraphJson.at("/caseSensitive").asBoolean();
+        final boolean              lIsCaseSensitive = lGraphJson.at("/caseSensitive").asBoolean(); /** TODO: Not sure what the purpose of this flag is. */
         // Declare the ProcessMap. (A Map of all of the Diagram Processes and their corresponding lookup key.)
         final Map<String, Process> lProcessMap      = new HashMap<>();
         // Fetch the Processes.
@@ -1642,34 +1643,21 @@ public final class Main {
         final List<Port>           lOutports        = FlowHubGlobal.onFetchPorts(lGraphJson.at("/outports"), lProcessMap);
         // Fetch the Connection.
         final List<Connection>     lConnections     = FlowHubGlobal.onFetchConnections(lGraphJson.at("/connections"), lProcessMap);
-        // Iterate the Processes.
-        for(final Process lProcess : lProcesses) {
-            // Iterate the Process' ports.
-            for(final Component.Port lInport : lProcess.getComponent().getInports()) {
-                // Fetch the number of Drivers.
-                final List<Connection> lDrivers = FlowHubGlobal.getDrivers(lProcess, lInport, lConnections);
-                // Are there no drivers?
-                if(lDrivers.isEmpty()) {
-                    // We don't support unwired Ports; *all* connections are required until we find a good architecture for handling default types.
-                    throw new UnsupportedOperationException("Diagram cannot be executed. Not all Inports have been wired.");
-                }
-                // Do we have instances of multiple drivers?
-                if(lDrivers.size() > 1) {
-                    // We don't support multiple drivers; dataflow doesn't work this way.
-                    throw new UnsupportedOperationException("Diagram cannot be executed. Detected multiple writes to a single Inport.");
-                }
-            }
-        }
         // Iterate sequentially across the Diagram.
-        FlowHubGlobal.iterate(lProcesses, lInports, lOutports, lConnections, new IFloListener<Component, Object>() {
+        FlowHubGlobal.iterate(lProcesses, lInports, lOutports, lConnections, new IFloListener<Component, Object, Port>() {
             /** Define the data provided by an Inport Parameter. */
             @Override public final Object getInportValue(final Port pPort) { return null; }
             /** Define the data supplied by a Constant. */
             @Override public final Object valueOf(final Connection.Data pDataConnection) { return null; }
             /** Executes a Component. Use the DataMap to look-up input data related via the SourceConnections, and write responses from the Process using the SinkConnections. (SinkConnections *must* provide output data in order for execution to work successfully.) */
-            @Override public final void onExecutionOf(final Component pComponent, List<Connection> pSourceConnections, final List<Connection> pSinkConnections, Map<Connection, Object> pDataMap) {
-                // i.e.
-                for(final Connection lOutputConnection : pSinkConnections) { pDataMap.put(lOutputConnection, "data at this output"); }
+            @Override public final void onExecutionOf(final Process<Component> pProcess, final List<Port> pSourceInports, final List<Connection> pSourceConnections, final List<Connection> pSinkConnections, final Map<Port, Object> pPortDataMap, final Map<Connection, Object> pDataMap) {
+                // Input.
+                for(int i = 0; i < pProcess.getComponent().getInports().size(); i++) {
+                    // Fetch the Driving Data.
+                    final Object lData = FlowHubGlobal.getDrivingData(pProcess, (Param)pProcess.getComponent().getInports().get(i), pSourceInports, pSourceConnections, pPortDataMap, pDataMap);
+                }
+                // Output.
+                for(final Connection lOutputConnection : pSinkConnections) { pDataMap.put(lOutputConnection, ""); }
             }
             /** Handles the data written to an Outport Parameter. */
             @Override public final void onOutportResponse(final Port pPort, final Object pData) { }
